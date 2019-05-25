@@ -1,0 +1,220 @@
+GPIO:
+
+Konfiguracja pinów w CubeMx
+
+Dostęp do całego portu (podobnie do AVR):
+	x_GPIO_Port->ODR |= / &= ~ / ^= (1<<pin) / x_Pin / 	
+
+Dostęp do poszczególnych pinów portu (atomowo):
+	x_GPIO_Port->BSRR = x_Pin / (1<<pin) //set
+	x_GPIO_Port->BRR = x_Pin //reset
+
+Przerwania:
+
+1. external z pinów
+	- konfiguracja pinów w CubeMx jako extint
+	- konfiguracja eventu i generacji kodu
+	- w main.c funkcja  HAL_GPIO_EXTI_Callback
+	- handler:
+	void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+	}
+	
+
+UART:
+
+	- konfiguracja pinów w CubeMX
+	- konfiguracja w connectivity USARTn (baudrate + przerwania)
+	
+	 HAL_UART_Transmit(&huart4, (uint8_t*)"Ha! ", strlen("Ha! "), HAL_MAX_DELAY); //wysyłanie w polling
+	
+	 HAL_UART_Receive(&huart4,(uint8_t*)uartBufor, 1, HAL_MAX_DELAY); // odbieranie w polling (dla wysłania w przerwie _IT)
+	
+	 - handler:
+	 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *UartHandle) {
+	 } //odebranie
+	 
+	 
+Timery:
+
+UpadateEvent = Clk/(prescaler+1)*(period+1)
+
+1. Basic: (do opóźnień)
+	 - konfiguracja w pinout w CubeMx
+	 - konfiguracja w widoku config:
+	 	- Preskaler (dzieli base f.)
+		- Period (wartość do której liczy timer)
+		- Trigger event ()
+	- HAL_TIM_Base_Start_IT(&htim6); //funkcja startu w tr. przer. 	
+	- HAL_TIM_Base_Start/Stop();
+	- HAL_TIM_Base_Start_DMA();
+	- handler:
+	void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
+		if (htim->Instance == TIM6){
+	}
+	
+2. General Purpose 	
+	a) external clock mode 2: (f = clk/(extCntPre)(Pre+1)*(Per+1)*(RepCnt))
+		- 	extCntPre - dodadkowy preskaler zew clk 
+		- 	zegar z ETR2Pin
+		
+	b) ext Clk mode 1: (tryb slave - trigger, jest sterowany innym timerem)	
+	 	-	może być sterowany liniami wew lub zew. (trigger source)
+		-	Tryby slave:
+			1. Reset -  RE reinicjalizuje timer i uktualnia reg
+			2. Gated - H startuje timer, L stopuje, ale nie resetuje
+			3. Trigger - RE startuje timer, nie uaktualnia reg.
+			4. External 1 - RE clockuje timer (clock)
+			5. Combinet rst trigger - Re reinicjalizuje i startuje
+		
+	c) tryb master: (sterowanie innym timerem - kaskada)	
+		- wyjście TRGO podłączone do wejścia ITR
+		- Tryby master:
+			1. Reset -  
+			2. Enable - TRGO, gdy master jest włączony (start kilku T na raz)
+			3. Update - Tryb presklera!!
+			4. OC1 - TRGO, gdy capture / compare
+			5. OCnRef - TRGO, gdy capture / compare z kanału n
+			
+		dla trigger event: HAL_TIM_SlaveConfigSynchronization_IT + callback
+	
+	d) capture
+		- Ustawić channel jako capture
+		freqCpt = cpture * TimClk/(Pre+1)(Chpre)(Polarityidx)
+		callback: HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim);
+		capture reg:	__HAL_TIM_GET_COMPARE(&htim2, TIM_CHANNEL_1);
+  	  	Reset countera 	__HAL_TIM_SetCounter(&htim2, 0);
+		
+	e) compare	(porównanie CCR i CTN_reg)	
+		
+		HAL_TIM_OC_Start_IT(&htim2,TIM_CHANNEL_1);
+		- Tryby:
+			1. cmp timing (brak wpływu na wyjście, do czasu)
+			2. cmp active (stan wysoki, gdy równe)
+			3. cmp inactive (stan niski, gdy równe)
+			4. cmp toggle (przełącz, gdy równe)
+			5. cmp forced active/inactive (jest wymuszany L/H niezależnie od stanu licznika)
+	
+	f) PWM
+		
+		HAL_TIM_PWM_Start_IT(&htim2,TIM_CHANNEL_1);	
+		__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, ++dutyCycle); //to pulse
+		odpowiednik TIM6->CCRx
+		
+	PWM mode 1: in upcounting, the channel is active as long as Period < 		Pulse, else inactive.
+		In downcounting, the channel is inactive as long as Period > Pulse, 		else active.
+	PWM mode 2: in upcounting, channel 1 is inactive as long as Period < 			Pulse, else active.
+		In downcounting, channel 1 is active as long as Period > Pule, else 		inactive.
+
+
+
+		
+	g) DMA:
+			Start - HAL_TIM_IC_Start_DMA(&htim2,TIM_CHANNEL_2,( uint32_t*)captureVal, 2); Przyjmuje wskaźnik/tablice!!
+			Tryb normal - jeden pomiar, trzeba znowu start_IT
+			Przerwania od kanału DMA automatycznie
+			Dla capture BothEdge tablica [2], nie zawsze RE w [0] a FE w buf[1] !!!
+			Dla halfword liczba 16bitowa!!!!
+			
+		
+
+ADC:
+	Funkcje:
+	uint32_t HAL_ADC_GetValue(ADC_HandleTypeDef* hadc)
+
+	Tryby konwersji:
+		- Signle channel, single conversion 
+		- Scan single conversion
+	Dla wyzwalania z Timera-> timer w trybie update, najpierw ADC_Start_IT, tryb single	
+	Uruchom Timer!!
+	
+	DMA + Timer (najbardziej użyteczny):
+		HAL_ADC_Start_DMA(hadc,(uint32_t*)rawValues, 2);
+		- przerwania automatycznie te same, + trzeba uruchomić za każdym razem pomiar
+		- By nie uruchamiać pomiaru za każdym razem (DMA continuosRequest = Enable + Mode = DMA_CIRCULAR), wtedy pomiar jest samplowany zegarem!! (1. w Parameter, 2 w DMA)
+		- ContinuosConvMode Disable, by trigger od timera
+		
+	Kalibracja:
+		- HAL_ADCEx_Calibration_Start(&hadc,calNbr); (kalibruje i wynik w calNbr)	
+		- HAL_ADCEx_Calibration_SetValue(ADC_HandleTypeDef* hadc, uint32_t SingleDiff, uint32_t CalibrationFactor);
+
+
+I2C:	(konfiguracja w cubeMx)
+	Wysyłanie danych:
+		- HAL_I2C_Master_Transmit(&hi2c1, ADDRRTC, &addr, 1,HAL_MAX_DELAY); 
+		- przed odebraniem danych musisz czekać na wysłanie, (dla TRANSMIT_IT)
+			np. ustawiasz flagę z przerwania.
+	Odbieranie danych:
+		- HAL_I2C_Master_Receive(&hi2c1, ADDRRTC, &seconds, 1,HAL_MAX_DELAY);
+		- HAL_I2C_Master_Receive_IT(&hi2c1, ADDRRTC, &seconds, 1);
+		- dla odbierania pakietu danych:
+			HAL_I2C_Master_Sequential_Receive_IT(&hi2c1,ADDRRTC,&seconds,1,I2C_FIRST/LAST/NEXT_FRAME);
+	Sekwecje zapisu/odczytu :
+		1. Zapis: 
+HAL_I2C_Master_Sequential_Transmit_IT(&hi2c1,ADDRRTC,&addr,1,I2C_FIRST_AND_NEXT_FRAME); 
+HAL_I2C_Master_Sequential_Transmit_IT(&hi2c1,ADDRRTC,&seconds,1,I2C_NEXT_FRAME);
+HAL_I2C_Master_Sequential_Transmit_IT(&hi2c1,ADDRRTC,&hour,1,I2C_LAST_FRAME);	
+
+		2. Odczyt: 
+HAL_I2C_Master_Sequential_Transmit_IT(&hi2c1, ADDRRTC, &addr, 1, I2C_FIRST_FRAME); 
+HAL_I2C_Master_Sequential_Receive_IT(&hi2c1, ADDRRTC, &seconds, 1, I2C_NEXT_FRAME);
+HAL_I2C_Master_Sequential_Receive_IT(&hi2c1, ADDRRTC, &hour, 1, I2C_LAST_FRAME);
+			
+		
+		
+		lub funkcje wbudowane do pojedynczych transakcji:
+		HAL_I2C_Mem_Write(&hi2c1,MEMADDR,0,2,toMemory,16,100);
+		  while(HAL_I2C_IsDeviceReady(&hi2c1,MEMADDR,1,100)); //czekaj
+		  HAL_I2C_Mem_Read(&hi2c1,MEMADDR,0,2,fromMemory,16,100);
+		
+
+
+WATCHDOG:
+			
+			1. IWDG
+				- clock z LSI
+				- update event = (2^prescaler)(period+1)/LSI_f
+		
+		
+		
+		
+Przydatne:
+	For system startup add preprocesor definition to STM_startup.s
+		
+		STARTUP_FROM_RESET
+   __disable_irq();
+   __enable_irq();
+   (1<<9);
+  stm32l073xx.h
+  
+  
+  Do timera:
+  
+  
+  /** 
+    * @brief TIM
+    */
+  typedef struct
+  {
+    __IO uint32_t CR1;       /*!< TIM control register 1,                       Address offset: 0x00 */
+    __IO uint32_t CR2;       /*!< TIM control register 2,                       Address offset: 0x04 */
+    __IO uint32_t SMCR;      /*!< TIM slave Mode Control register,              Address offset: 0x08 */
+    __IO uint32_t DIER;      /*!< TIM DMA/interrupt enable register,            Address offset: 0x0C */
+    __IO uint32_t SR;        /*!< TIM status register,                          Address offset: 0x10 */
+    __IO uint32_t EGR;       /*!< TIM event generation register,                Address offset: 0x14 */
+    __IO uint32_t CCMR1;     /*!< TIM  capture/compare mode register 1,         Address offset: 0x18 */
+    __IO uint32_t CCMR2;     /*!< TIM  capture/compare mode register 2,         Address offset: 0x1C */
+    __IO uint32_t CCER;      /*!< TIM capture/compare enable register,          Address offset: 0x20 */
+    __IO uint32_t CNT;       /*!< TIM counter register,                         Address offset: 0x24 */
+    __IO uint32_t PSC;       /*!< TIM prescaler register,                       Address offset: 0x28 */
+    __IO uint32_t ARR;       /*!< TIM auto-reload register,                     Address offset: 0x2C */
+    uint32_t      RESERVED12;/*!< Reserved                                      Address offset: 0x30 */
+    __IO uint32_t CCR1;      /*!< TIM capture/compare register 1,               Address offset: 0x34 */
+    __IO uint32_t CCR2;      /*!< TIM capture/compare register 2,               Address offset: 0x38 */
+    __IO uint32_t CCR3;      /*!< TIM capture/compare register 3,               Address offset: 0x3C */
+    __IO uint32_t CCR4;      /*!< TIM capture/compare register 4,               Address offset: 0x40 */
+    uint32_t      RESERVED17;/*!< Reserved,                                     Address offset: 0x44 */
+    __IO uint32_t DCR;       /*!< TIM DMA control register,                     Address offset: 0x48 */
+    __IO uint32_t DMAR;      /*!< TIM DMA address for full transfer register,   Address offset: 0x4C */
+    __IO uint32_t OR;        /*!< TIM option register,                          Address offset: 0x50 */
+  } TIM_TypeDef;
+  
