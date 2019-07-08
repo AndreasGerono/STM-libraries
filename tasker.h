@@ -25,13 +25,13 @@ typedef struct{
 
 void task_reset(Task *);
 void task_stop(Task *);
-void task_check(Task*);
-
+void task_check(Task *);
+void task_destroy(Task *);
 
 void event_reset(Event *);
 void event_stop(Event *);
-
-_Bool event_State(Event*);
+_Bool event_State(Event *);
+void event_destroy(Event  *);
 
 Task task_make(uint32_t interval_ms, void (*func)() );
 Event event_make(uint32_t interval_ms);
