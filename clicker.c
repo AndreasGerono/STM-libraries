@@ -3,10 +3,8 @@
 #include "tasker.h"
 #include "stdlib.h"
 
-#define DEFAULT_TIME 300
+#define DEFAULT_TIME 200
 #define  DEBOUNCE_TIME 100
-
-int debugger1 = 100;
 
 enum State{
 	Stop = 0,
@@ -18,7 +16,7 @@ struct ButtonElement{
 	uint16_t pin;
 	GPIO_TypeDef *gpio;
 	enum State state;
-	Event event;
+	Task task;
 };
 
 
@@ -27,38 +25,38 @@ void setStop(Button);
 void setDebounce(Button);
 
 static void debounceAction(Button instance){
-	event_change(instance->event, DEBOUNCE_TIME);
-	event_reset(instance->event);
+	task_change(instance->task, DEBOUNCE_TIME);
+	task_reset(instance->task);
 }
 
 static void clickAction(Button instance){
-	event_change(instance->event, DEFAULT_TIME);
+	task_change(instance->task, DEFAULT_TIME);
 }
 
 static void stopAction(Button instance){
-	event_stop(instance->event);
-	debugger1++;
+	task_stop(instance->task);
 }
 
 
-Button button_make(GPIO_TypeDef *gpio, uint16_t pin){
+Button button_make(GPIO_TypeDef *gpio, uint16_t pin, funcptr funn){
 	Button instance = malloc( sizeof * instance);
-	instance->gpio = gpio;
-	instance->pin = pin;
-	instance->event = event_make(DEFAULT_TIME);
-	instance->state = Click;	//starting with click to force setStop in first button_check
+	if (NULL != instance){
+		instance->gpio = gpio;
+		instance->pin = pin;
+		instance->task = task_make(DEFAULT_TIME, funn);
+		instance->state = Stop;
+	}
 	return instance;
 }
 
-_Bool button_check(Button instance){
-	debugger1 = instance->state;
+_Bool button_check(Button instance, void *args){
 	if(!HAL_GPIO_ReadPin(instance->gpio, instance->pin)){
 		setDebounce(instance);
 	}
 	else {
 		setStop(instance);
 	}
-	if (event_state(instance->event)){
+	if (task_state(instance->task, args)){
 		setClick(instance);
 		return SET;
 	}
