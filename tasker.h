@@ -4,37 +4,29 @@
 
 //for functions with parameter use events, task can only manage void functions!!
 //events use with 'if' function in main loop
+//You need start task/event with *_reset()
 
 #include "stdint.h"
 
 
-typedef void (*taskFuncptr)(); 
+typedef void (*taskFuncptr)(void *args);
 
-typedef struct{
-	uint32_t interval;
-	uint32_t lastTick;
-	taskFuncptr taskFunc;
-} Task;
-
-typedef struct{
-	uint32_t interval;
-	uint32_t lastTick;
-} Event;
+typedef struct TaskElement *Task;
+typedef struct EventElenemt *Event;
 
 
+Task task_make(uint32_t interval_ms, taskFuncptr);
+void task_reset(Task);
+void task_stop(Task);
+void task_check(Task, void *args);
 
-void task_reset(Task *);
-void task_stop(Task *);
-void task_check(Task *);
-void task_destroy(Task *);
+Event event_make(uint32_t intermal_ms);
+void event_reset(Event);
+void event_stop(Event);
+void event_change(Event, uint32_t interval_ms);
+_Bool event_state(Event);
 
-void event_reset(Event *);
-void event_stop(Event *);
-_Bool event_State(Event *);
-void event_destroy(Event  *);
 
-Task task_make(uint32_t interval_ms, void (*func)() );
-Event event_make(uint32_t interval_ms);
 
 
 
