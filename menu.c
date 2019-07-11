@@ -6,14 +6,14 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#define ROWS 2
+#define ROWS 3    //Two ROWS means two (row1, row2), not (row0, row1, row2)!
 
 
 MenuItemPtr current_menu = NULL;
 MenuItemPtr top_menu = NULL;
-uint8_t position = 0;
+int position = 0;
 
-static void menuItem_print(MenuItemPtr menu){    //
+static void menuItem_print(MenuItemPtr menu){    
     if (NULL != menu->name) {
         printf("%s", menu->name);
         if (menu->name == current_menu->name) {
@@ -22,6 +22,7 @@ static void menuItem_print(MenuItemPtr menu){    //
         printf("\n");
     }
 }
+
 
 void menu_draw(){
     system("clear");
@@ -45,23 +46,25 @@ void menu_next(){
         current_menu = current_menu->next;
         ++position;
         if (position >= ROWS){
-            position = ROWS;
-            top_menu = top_menu->next;
+            position = ROWS-1;
+            if (NULL != top_menu->next) 
+                top_menu = top_menu->next;
         }
-    menu_draw();
     }
+    menu_draw();
 }
 
 void menu_prev(){
     if (NULL != current_menu->prev) {
         current_menu = current_menu->prev;
         --position;
-        if (position == 0) {
-            top_menu = top_menu->prev;
+        if (position < 0) {
             position = 0;
+            if (NULL != top_menu->prev)
+                top_menu = top_menu->prev;
         }
-    menu_draw();
     }
+    menu_draw();
 }
 
 void menu_ok(){
@@ -69,17 +72,16 @@ void menu_ok(){
         current_menu = current_menu->up;
         top_menu = current_menu;
         position = 0;
-        menu_draw();
     }
     else if (NULL != current_menu->down) {
         current_menu = current_menu->down;
         top_menu = current_menu;
         position = 0;
-        menu_draw();
     }
     else {
         printf("Brak!\n");
     }
+    menu_draw();
 }
 
 
@@ -96,4 +98,11 @@ MenuItem new_menuItem(char* name, MenuItemPtr next, MenuItemPtr prev, MenuItemPt
         top_menu = current_menu;
     }
     return instance;
+}
+
+void print_current(){
+    printf("%s ", current_menu->name);
+    if (NULL != top_menu) {
+        printf("%s %d", top_menu->name, position);
+    }
 }

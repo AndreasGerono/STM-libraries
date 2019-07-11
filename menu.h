@@ -25,9 +25,8 @@ void menu_draw();
 void menu_next();
 void menu_prev();
 void menu_ok();
+void print_current();
 MenuItem new_menuItem(char* name, MenuItemPtr next, MenuItemPtr prev, MenuItemPtr up, MenuItemPtr down);
-
-
 
 
 
