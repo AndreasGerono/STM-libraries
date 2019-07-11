@@ -1,5 +1,4 @@
 #include "clicker.h"
-#include "clicker.h"
 #include "tasker.h"
 #include "stdlib.h"
 

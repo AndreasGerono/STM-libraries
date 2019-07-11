@@ -1,40 +1,34 @@
 //
-// Menu library
-//
-
-#include "stdint.h"
-#include "st7920.h"
+// menu.h
+// Created by Andreas Gerono on 11/07/2019.
 
 //
-//Define navigaton inputs in CubeMx as external interrupt
-//
-//BTN_UP_Pin
-//BTN_OK_Pin
-//BTN_DOWN_Pin
+//New library for menu
+//To do: add display support
 
-#define SELECTION 0x07
-#define NEXT ' '
-#define LCD_ROWS  4 //number of rows in display
-#define LCD_COLUMNS 16 //number of columns in display
+#ifndef _menu_h_
+#define _menu_h_
 
-typedef void (*menuitemfuncptr)(); //pointer to menu click function (new pointer type)
+typedef struct MenuItem* MenuItemPtr;
+typedef struct MenuItem MenuItem;
 
-
-struct _menuitem {  
-  char *text;
-  menuitemfuncptr menuitemfunc; //menu click function
-  struct _menuitem *parent; //first element of every menu
-  struct _menuitem *submenu;  
-  struct _menuitem *next; //Menu below, if 0 last Menuitem
+struct MenuItem{
+    char* name;
+    MenuItemPtr next;
+    MenuItemPtr prev;
+    MenuItemPtr up;
+    MenuItemPtr down;
 };
 
 
-void Menu_Show();
-void Menu_SelectNext();
-void Menu_SelectPrev();
-void Menu_Click();
-void Menu_Back();
+void menu_draw();
+void menu_next();
+void menu_prev();
+void menu_ok();
+MenuItem new_menuItem(char* name, MenuItemPtr next, MenuItemPtr prev, MenuItemPtr up, MenuItemPtr down);
 
 
-extern struct _menuitem menu; //new menu struct (forward declaration)
-extern struct _menuitem menuUpdate; //empty menu to update names  (forward declaration)
+
+
+
+#endif

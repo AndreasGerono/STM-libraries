@@ -1,102 +1,99 @@
+//
+// menu.c
+// Created by Andreas Gerono on 11/07/2019.
+
 #include "menu.h"
-#include "st7920.h"
+#include <stdlib.h>
+#include <stdio.h>
+
+#define ROWS 2
 
 
-//Version without rotating/rolling mode
+MenuItemPtr current_menu = NULL;
+MenuItemPtr top_menu = NULL;
+uint8_t position = 0;
 
-static struct _menuitem *currMenuPtr = &menu; //Pointer to current selected Menu item (current drawed)
-static int8_t menuindex;                      //Selected menu
-static int8_t menufirstpos;                   //Menu on top
-
-static void Menu_UpdateNames() {
-  menuUpdate.menuitemfunc();
-}
-
-static uint8_t Menu_GetMenuItemsNo() //counts menu items (from one parent)
-{
-  struct _menuitem *tmpmenuitem = currMenuPtr;
-  uint8_t index = 0;
-  while (tmpmenuitem) {
-    tmpmenuitem = tmpmenuitem->next;
-    index++;
-  }
-  return index;
-}
-
-static struct _menuitem *Menu_GetMenuItem(uint8_t index) { //
-  struct _menuitem *tmpmenuitem = currMenuPtr;
-
-  while ((tmpmenuitem) && (index > 0)) {
-    tmpmenuitem = tmpmenuitem->next;
-    index--;
-  }
-  return tmpmenuitem;
-}
-
-static uint8_t Menu_GetMenuRows() { //Maximum menu elements on LCD
-  return LCD_ROWS;
-}
-
-void Menu_Show() {
-  Menu_UpdateNames();
-  struct _menuitem *tmpmenuitem = Menu_GetMenuItem(menufirstpos);
-  uint8_t menuitemsno = Menu_GetMenuItemsNo();
-  LCD_Clear(); //
-
-  for (uint8_t i = 0; i < Menu_GetMenuRows(); i++) {
-    LCD_GoTo(0, i);                        //
-    if (menuindex == ((menufirstpos + i))) //
-      LCD_WriteData(SELECTION);
-    else
-      LCD_WriteData(' ');             //
-    LCD_WriteText(tmpmenuitem->text); //
-    if (tmpmenuitem->submenu)
-      LCD_WriteData(NEXT); //
-    tmpmenuitem = tmpmenuitem->next;
-    if (tmpmenuitem == NULL) //
-      break;                 //
-  }
-}
-
-void Menu_SelectNext() {
-  uint8_t no = Menu_GetMenuItemsNo();
-  if (menuindex < no - 1) {
-    menuindex++;
-    if (no > Menu_GetMenuRows()) //check if menu number > LCD lines (to move down first position)
-    {
-      if (menuindex >= Menu_GetMenuRows()) //Move down menu when menu index > LCD lines
-        menufirstpos++;
+static void menuItem_print(MenuItemPtr menu){    //
+    if (NULL != menu->name) {
+        printf("%s", menu->name);
+        if (menu->name == current_menu->name) {
+            printf("    <--");
+        }
+        printf("\n");
     }
-    Menu_Show(); //
-  }
 }
 
-void Menu_SelectPrev() {
-  if (menuindex) {
-    if (menuindex == menufirstpos)
-      menufirstpos--;
-    menuindex--; //
-  }
-  Menu_Show(); //
+void menu_draw(){
+    system("clear");
+    MenuItemPtr instance = top_menu;
+    for (int i = 0; i < ROWS; ++i) {
+        if (NULL != instance) {
+            menuItem_print(instance);
+            instance = instance->next;
+        }
+        else {
+            break;
+        }
+    }
+    printf("End\n\n");
 }
 
-void Menu_Back() {
-  menufirstpos = 0;
-  menuindex = 0;
-  currMenuPtr = currMenuPtr->parent;
+
+
+void menu_next(){
+    if (NULL != current_menu->next) {
+        current_menu = current_menu->next;
+        ++position;
+        if (position >= ROWS){
+            position = ROWS;
+            top_menu = top_menu->next;
+        }
+    menu_draw();
+    }
 }
 
-void Menu_Click() {
-  struct _menuitem *tmpmenuitem = Menu_GetMenuItem(menuindex);
-  struct _menuitem *submenu = tmpmenuitem->submenu;
-  menuitemfuncptr mfptr = tmpmenuitem->menuitemfunc;
+void menu_prev(){
+    if (NULL != current_menu->prev) {
+        current_menu = current_menu->prev;
+        --position;
+        if (position == 0) {
+            top_menu = top_menu->prev;
+            position = 0;
+        }
+    menu_draw();
+    }
+}
 
-  if (mfptr)
-    (*mfptr)();
-  if (submenu) {
-    currMenuPtr = submenu;
-    menuindex = 0;
-    menufirstpos = 0;
-  }
-  Menu_Show();
+void menu_ok(){
+    if (NULL != current_menu->up) {
+        current_menu = current_menu->up;
+        top_menu = current_menu;
+        position = 0;
+        menu_draw();
+    }
+    else if (NULL != current_menu->down) {
+        current_menu = current_menu->down;
+        top_menu = current_menu;
+        position = 0;
+        menu_draw();
+    }
+    else {
+        printf("Brak!\n");
+    }
+}
+
+
+MenuItem new_menuItem(char* name, MenuItemPtr next, MenuItemPtr prev, MenuItemPtr up, MenuItemPtr down){
+    MenuItem instance;
+    instance.name = name;
+    instance.next = next;
+    instance.prev = prev;
+    instance.up = up;
+    instance.down = down;
+    
+    if (NULL == current_menu) {
+        current_menu = &instance;
+        top_menu = current_menu;
+    }
+    return instance;
 }
