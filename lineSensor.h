@@ -3,7 +3,7 @@
 
 
 
-void sensor_trigger();
+void sensor_start();
+void sensor_stop();
 void sensor_measure();
-void sensor_timeOut();
-_Bool sensor_get(uint8_t value);
+_Bool sensor_get(uint8_t);
