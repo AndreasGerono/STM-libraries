@@ -1,108 +1,153 @@
 //
 // menu.c
-// Created by Andreas Gerono on 11/07/2019.
+// Created by Andreas Gerono on 14/07/2019.
 
 #include "menu.h"
 #include <stdlib.h>
 #include <stdio.h>
 
-#define ROWS 3    //Two ROWS means two (row1, row2), not (row0, row1, row2)!
+#define ROWS 3
 
 
-MenuItemPtr current_menu = NULL;
-MenuItemPtr top_menu = NULL;
-int position = 0;
 
-static void menuItem_print(MenuItemPtr menu){    
-    if (NULL != menu->name) {
-        printf("%s", menu->name);
-        if (menu->name == current_menu->name) {
-            printf("    <--");
-        }
-        printf("\n");
+int main(){
+    Menu_ptr menu1 = menu_new(4);
+    Menu_ptr menu11 = menu_new(2);
+    Menu_ptr menu111 = menu_new(2);
+    
+    menu_add_item(menu1, "menu1", NULL);
+    menu_add_item(menu1, "menu2", NULL);
+    menu_add_item(menu1, "menu3", menu11);
+    menu_add_item(menu1, "menu4", NULL);
+    
+    menu_add_item(menu11, "menu11", menu111);
+    menu_add_item(menu11, "menu12", menu1);
+    
+    menu_add_item(menu111, "menu111", menu11);
+    menu_add_item(menu111, "menu112", NULL);
+    
+    
+    char key = '0';
+    menu_draw();
+    while (key != 'e') {
+        scanf("%c", &key);
+        if (key == '1') 
+            menu_previous();
+        if (key == '2') 
+            menu_ok();
+        if (key == '3') 
+            menu_next();
+        if (key == '4')
+            menu_current();
     }
+}
+
+Menu_ptr currentMenu = NULL;
+
+
+struct Menu_item{
+    char* name;
+    Menu_ptr next;
+};
+
+struct Menu{
+    struct Menu_item *list;    
+    int8_t index;
+    int8_t items;
+    int8_t position;
+    int8_t top;
+};
+
+
+Menu_ptr menu_new(size_t size){
+    Menu_ptr menu = malloc( sizeof * menu);
+    menu->list = malloc(size * sizeof(struct Menu));
+    menu->index = 0;
+    menu->items = 0;
+    menu->position = 0;
+    menu->top = 0;
+    if (NULL == currentMenu) {
+        currentMenu = menu;
+    }
+    return menu;
+}
+
+static struct Menu_item new_item(char* name, Menu_ptr next){
+    struct Menu_item item;
+    item.name = name;
+    item.next = next;
+    return item;
+}
+
+void menu_add_item(Menu_ptr menu, char* name, Menu_ptr next){
+    struct Menu_item item = new_item(name, next);
+    menu->list[menu->items] = item;
+    menu->items++;
+}
+
+void menu_current(){
+    char* name = currentMenu->list[currentMenu->index].name;
+    printf("%s %d %d %d\n", name, currentMenu->position, currentMenu->top, currentMenu->index);
+}
+
+
+void menu_next(){
+    if (currentMenu->index < currentMenu->items-1) {
+        ++currentMenu->index;
+        ++currentMenu->position;
+        if (currentMenu->position >= ROWS) {
+            currentMenu->position = ROWS-1;
+            ++currentMenu->top;
+        }
+        menu_draw();
+    }
+    else {
+        printf("Brak!\n");
+    }      
+}
+
+void menu_previous(){
+    if (currentMenu->index > 0) {
+        --currentMenu->index;
+        --currentMenu->position;
+         if (currentMenu->position < 0) {
+                currentMenu->position = 0;
+                --currentMenu->top;
+            }
+        menu_draw();
+    }
+    else {
+        printf("Brak!\n");
+    }    
+}
+
+void menu_ok(){
+    if (NULL != currentMenu->list[currentMenu->index].next) {
+        currentMenu = currentMenu->list[currentMenu->index].next;
+        menu_draw();
+    }
+    else {
+        printf("Brak!\n");
+    }
+}
+
+
+static void draw_item(int8_t index){
+    printf( "%s", currentMenu->list[index].name);
+    if (index == currentMenu->index) {
+        printf("  <--");
+    }
+    printf("\n");
 }
 
 
 void menu_draw(){
     system("clear");
-    MenuItemPtr instance = top_menu;
-    for (int i = 0; i < ROWS; ++i) {
-        if (NULL != instance) {
-            menuItem_print(instance);
-            instance = instance->next;
-        }
-        else {
+    for (int8_t i = currentMenu->top; i < ROWS+currentMenu->top; i++) {
+        if (i >= currentMenu->items) {
             break;
         }
+        draw_item(i);
     }
-    printf("End\n\n");
-}
-
-
-
-void menu_next(){
-    if (NULL != current_menu->next) {
-        current_menu = current_menu->next;
-        ++position;
-        if (position >= ROWS){
-            position = ROWS-1;
-            if (NULL != top_menu->next) 
-                top_menu = top_menu->next;
-        }
-    }
-    menu_draw();
-}
-
-void menu_prev(){
-    if (NULL != current_menu->prev) {
-        current_menu = current_menu->prev;
-        --position;
-        if (position < 0) {
-            position = 0;
-            if (NULL != top_menu->prev)
-                top_menu = top_menu->prev;
-        }
-    }
-    menu_draw();
-}
-
-void menu_ok(){
-    if (NULL != current_menu->up) {
-        current_menu = current_menu->up;
-        top_menu = current_menu;
-        position = 0;
-    }
-    else if (NULL != current_menu->down) {
-        current_menu = current_menu->down;
-        top_menu = current_menu;
-        position = 0;
-    }
-    else {
-        printf("Brak!\n");
-    }
-    menu_draw();
-}
-
-
-MenuItem new_menuItem(char* name, MenuItemPtr next, MenuItemPtr prev, MenuItemPtr up, MenuItemPtr down){
-    MenuItem instance;
-    instance.name = name;
-    instance.next = next;
-    instance.prev = prev;
-    instance.up = up;
-    instance.down = down;
-    
-    if (NULL == current_menu) {
-        current_menu = &instance;
-        top_menu = current_menu;
-    }
-    return instance;
-}
-
-void print_current(){
-    printf("%s ", current_menu->name);
-    if (NULL != top_menu) {
-        printf("%s %d", top_menu->name, position);
-    }
+    printf("\nend\n\n");
 }

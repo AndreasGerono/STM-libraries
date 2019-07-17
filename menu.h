@@ -1,33 +1,21 @@
 //
 // menu.h
-// Created by Andreas Gerono on 11/07/2019.
-
-//
-//New library for menu
-//To do: add display support
+// Created by Andreas Gerono on 14/07/2019.
 
 #ifndef _menu_h_
 #define _menu_h_
+#include <stdio.h>
 
-typedef struct MenuItem* MenuItemPtr;
-typedef struct MenuItem MenuItem;
+typedef struct Menu* Menu_ptr;
 
-struct MenuItem{
-    char* name;
-    MenuItemPtr next;
-    MenuItemPtr prev;
-    MenuItemPtr up;
-    MenuItemPtr down;
-};
-
-
-void menu_draw();
+Menu_ptr menu_new(size_t size);
+void menu_current();
 void menu_next();
-void menu_prev();
+void menu_previous();
 void menu_ok();
-void print_current();
-MenuItem new_menuItem(char* name, MenuItemPtr next, MenuItemPtr prev, MenuItemPtr up, MenuItemPtr down);
+void menu_draw();
 
+void menu_add_item(Menu_ptr menu, char* name, Menu_ptr next);
 
 
 #endif
