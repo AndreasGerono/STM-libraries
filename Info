@@ -8,8 +8,7 @@ Dostęp do całego portu (podobnie do AVR):
 Dostęp do poszczególnych pinów portu (atomowo):
 	x_GPIO_Port->BSRR = x_Pin / (1<<pin) //set
 	x_GPIO_Port->BRR = x_Pin //reset
-
-Przerwania:
+yhPrzerwania:
 
 1. external z pinów
 	- konfiguracja pinów w CubeMx jako extint
